@@ -30,7 +30,7 @@ module.exports = {
       // Clear conversation history
       if (args[0]?.toLowerCase() === 'clear') {
         conversations.delete(key);
-        return api.sendMessage('🧹 Conversation cleared. Starting fresh next time!', event.threadId);
+        return api.sendMessage('Cleared.', event.threadId);
       }
 
       const prompt = args.join(' ').trim();
@@ -56,7 +56,6 @@ module.exports = {
       }
 
       await api.sendReaction('⏳', event.messageId);
-
       const conversationId = conversations.get(key) || null;
 
       const params = {
@@ -93,7 +92,7 @@ module.exports = {
     } catch (error) {
       logger.error('metaai error', { error: error.message });
       await api.sendReaction('❌', event.messageId);
-      return api.sendMessage(`❌ Error: ${error.message}`, event.threadId);
+      return api.sendMessage(`❌ ${error.message}`, event.threadId);
     }
   }
 };

@@ -27,8 +27,6 @@ module.exports = {
         return api.sendMessage('❌ Please provide a valid username!', event.threadId);
       }
 
-      await api.sendMessage(`🔍 Fetching detailed information for @${username}...`, event.threadId);
-
       try {
         const userInfo = await bot.ig.getUserInfoByUsername(username);
 

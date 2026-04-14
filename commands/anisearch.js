@@ -35,8 +35,6 @@ module.exports = {
       const searchQuery = `${query} anime edit`;
 
       await api.sendReaction('✨', event.messageId);
-      await api.sendMessage(`🔍 Searching for "${query}" anime edits...`, event.threadId);
-
       const videos = await fetchAnimeVideos(searchQuery);
 
       if (!videos || videos.length === 0) {

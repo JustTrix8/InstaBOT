@@ -153,9 +153,6 @@ module.exports = {
       return api.sendMessage('❌ Invalid User ID format. Please provide a numeric User ID.', event.threadId);
     }
 
-    // Get user info to verify user exists
-    await api.sendMessage(`🔍 Verifying user ${userIdToAdd}...`, event.threadId);
-
     try {
       const userInfo = await bot.ig.getUserInfo(userIdToAdd);
       
