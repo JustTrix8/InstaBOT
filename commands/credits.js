@@ -13,32 +13,17 @@ module.exports = {
   async run({ api, event, logger, config }) {
     try {
       const creditsText =
-`╔═══════════════════════════════════════════╗
-║               InstaBOT                   ║
-║        Advanced Instagram Bot            ║
-╚═══════════════════════════════════════════╝
+`InstaBOT v${config.BOT_VERSION}
 
-👑 Created by: NeoKEX
-🔗 GitHub: github.com/NeoKEX
-📦 Version: ${config.BOT_VERSION}
-⚙️  Prefix: ${config.PREFIX}
+Created by NeoKEX
+GitHub: github.com/NeoKEX
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+InstaBOT is a powerful, modular Instagram bot built for automation and fun. Fully open-source and crafted with care.
 
-💡 About InstaBOT:
-  InstaBOT is a powerful, modular Instagram
-  bot built for automation and fun. Fully
-  open-source and crafted with care by NeoKEX.
+Like this bot? Star it on GitHub!
+Found a bug? Open an issue on GitHub.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🌟 Like this bot? Star it on GitHub!
-🐛 Found a bug? Open an issue on GitHub
-💬 github.com/NeoKEX
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-⚠️ Credits must not be removed or modified.`;
+Credits must not be removed or modified.`;
 
       return api.sendMessage(creditsText, event.threadId);
     } catch (error) {

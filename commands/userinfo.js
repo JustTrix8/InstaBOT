@@ -48,9 +48,7 @@ module.exports = {
         const externalUrl = userInfo.external_url || 'None';
         const category = userInfo.category || 'N/A';
 
-        let message = `╔═══════════════════════════════════╗\n`;
-        message += `║      INSTAGRAM USER INFO          ║\n`;
-        message += `╚═══════════════════════════════════╝\n\n`;
+        let message = `Instagram User Info\n\n`;
         message += `👤 Username: @${username}\n`;
         message += `🆔 User ID: ${userId}\n`;
         message += `📝 Full Name: ${fullName}\n`;
@@ -71,7 +69,6 @@ module.exports = {
           message += `🏷️ Category: ${category}\n\n`;
         }
         
-        message += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
         message += `Profile: https://instagram.com/${username}`;
 
         return api.sendMessage(message, event.threadId);

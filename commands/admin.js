@@ -78,9 +78,7 @@ module.exports = {
     const admins = ConfigManager.getAdmins();
     const developer = ConfigManager.getDeveloper();
 
-    let adminText = `╔════════════════════════════╗\n`;
-    adminText += `║     ADMIN PANEL            ║\n`;
-    adminText += `╚════════════════════════════╝\n\n`;
+    let adminText = `Admin Panel\n\n`;
     adminText += `👤 Your Role: ${roleName}\n`;
     adminText += `🔢 Role Level: ${senderRole}\n\n`;
     

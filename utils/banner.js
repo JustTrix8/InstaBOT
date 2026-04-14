@@ -3,26 +3,19 @@ const config = require('../config');
 
 class Banner {
   static display() {
-    const banner = `
-╔═══════════════════════════════════════════════════════════════════╗
-║                          InstaBOT                                 ║
-╠═══════════════════════════════════════════════════════════════════╣
-║  📦 Version: ${config.BOT_VERSION.padEnd(52)} ║
-║  👤 Author:  NeoKEX                                               ║
-║  🔗 GitHub:  github.com/NeoKEX                                    ║
-╚═══════════════════════════════════════════════════════════════════╝
-`;
-    console.log('\x1b[36m%s\x1b[0m', banner);
+    console.log('\x1b[36m%s\x1b[0m', `
+  InstaBOT v${config.BOT_VERSION}
+  Author : NeoKEX
+  GitHub : github.com/NeoKEX
+`);
   }
 
   static startupMessage(userID, username, commandCount, eventCount) {
-    console.log('');
     logger.success(`InstaBOT started successfully`);
     logger.info(`User: @${username || 'Loading...'} (${userID || 'Loading...'})`);
     logger.info(`Loaded ${commandCount} commands and ${eventCount} events`);
     logger.info(`Prefix: ${config.PREFIX}`);
-    logger.success(`InstaBOT is now listening for messages...`);
-    console.log('');
+    logger.success(`Listening for messages...`);
   }
 
   static commandExecuted(commandName, user, success = true) {
@@ -33,16 +26,11 @@ class Banner {
     if (config.LOG_LEVEL === 'debug') {
       let previewStr = '';
       try {
-        if (typeof preview === 'string') {
-          previewStr = preview;
-        } else if (preview === null || preview === undefined) {
-          previewStr = '';
-        } else if (typeof preview === 'object') {
-          previewStr = JSON.stringify(preview);
-        } else {
-          previewStr = String(preview);
-        }
-      } catch (err) {
+        if (typeof preview === 'string') previewStr = preview;
+        else if (preview === null || preview === undefined) previewStr = '';
+        else if (typeof preview === 'object') previewStr = JSON.stringify(preview);
+        else previewStr = String(preview);
+      } catch (_) {
         previewStr = '[unable to display]';
       }
       const truncated = previewStr.length > 40 ? previewStr.substring(0, 40) + '...' : previewStr;
