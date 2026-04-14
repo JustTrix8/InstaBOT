@@ -179,8 +179,24 @@ module.exports = {
         database.updateUser(event.senderID, user);
         database.incrementStat('totalCommands');
 
+        // Wrap api so sendMessage automatically replies to the triggering message
+        const replyApi = new Proxy(api, {
+          get(target, prop) {
+            if (prop === 'sendMessage') {
+              return async (text, threadID) => {
+                try {
+                  return await target.replyToMessage(threadID, text, event.messageID);
+                } catch (_) {
+                  return await target.sendMessage(text, threadID);
+                }
+              };
+            }
+            return target[prop];
+          }
+        });
+
         await command.run({
-          api,
+          api: replyApi,
           event,
           args,
           bot,
