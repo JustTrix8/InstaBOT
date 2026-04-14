@@ -1,4 +1,5 @@
-const { setOptions } = require('@neoaz07/nkxica');
+const { login } = require('@neoaz07/nkxica');
+const setOptions = login.setOptions;
 
 module.exports = {
   config: {

@@ -1,24 +1,6 @@
-const {
-  login,
-  loadCookies,
-  loginWithCookies,
-  listen,
-  stopListening,
-  getCurrentUserID,
-  sendMessage,
-  sendDirectMessage,
-  unsendMessage,
-  sendPhoto,
-  sendVideo,
-  sendVoice,
-  sendTypingIndicator,
-  markAsRead,
-  getThreadInfo,
-  getInbox,
-  getUserInfo,
-  getUserInfoByUsername,
-  setOptions
-} = require('@neoaz07/nkxica');
+'use strict';
+
+const { login } = require('@neoaz07/nkxica');
 
 const fs   = require('fs');
 const cron = require('node-cron');
@@ -31,7 +13,8 @@ const Banner        = require('../utils/banner');
 
 class InstagramBot {
   constructor() {
-    this.api               = null;
+    this.ig                = null;   // nkxica api object from login()
+    this.api               = null;   // our wrapped api
     this.userID            = null;
     this.username          = null;
     this.commandLoader     = new CommandLoader();
@@ -39,8 +22,9 @@ class InstagramBot {
     this.reconnectAttempts = 0;
     this.shouldReconnect   = config.AUTO_RECONNECT;
     this.isRunning         = false;
-    this._mqttRestartTimer = null;
+    this._mqttRestartTimer  = null;
     this._cookieRefreshTimer = null;
+    this._reminderTimer     = null;
   }
 
   // ── Boot ──────────────────────────────────────────────────────────────
@@ -57,12 +41,11 @@ class InstagramBot {
       await this.eventLoader.loadEvents();
       this.eventLoader.registerEvents();
 
-      // Apply optionsFca from config
-      setOptions(config.OPTIONS_FCA);
+      // Apply options before login (available on the login function itself)
+      login.setOptions(config.OPTIONS_FCA);
 
       await this.loadAndLogin();
 
-      // Schedule optional features after successful login
       this._scheduleAutoRestart();
       this._scheduleAutoUptime();
     } catch (error) {
@@ -87,11 +70,13 @@ class InstagramBot {
 
     if (hasValidCookies) {
       logger.info('Loading cookies from account.txt…');
-      loadCookies(cookieContent, 'netscape');
-      await this._loginWithCookies(cookieContent);
+      this.ig = await login(cookieContent);
     } else if (hasCredentials) {
       logger.info('No valid cookies found — logging in with email/password…');
-      await this._loginWithCredentials();
+      this.ig = await login({
+        email:    config.ACCOUNT_EMAIL,
+        password: config.ACCOUNT_PASSWORD
+      });
     } else {
       throw new Error(
         'No valid cookies in account.txt and no email/password configured. ' +
@@ -99,7 +84,8 @@ class InstagramBot {
       );
     }
 
-    // Schedule periodic cookie refresh if configured
+    this._afterLogin();
+
     if (hasCredentials && config.AUTO_REFRESH_FBSTATE && config.INTERVAL_GET_NEW_COOKIE) {
       this._scheduleCookieRefresh();
     }
@@ -113,38 +99,16 @@ class InstagramBot {
     });
   }
 
-  _loginWithCookies(cookieContent) {
-    return new Promise((resolve, reject) => {
-      loginWithCookies(cookieContent, {}, (err) => {
-        if (err) return reject(err);
-        this._afterLogin();
-        resolve();
-      });
-    });
-  }
-
-  _loginWithCredentials() {
-    return new Promise((resolve, reject) => {
-      login(
-        { email: config.ACCOUNT_EMAIL, password: config.ACCOUNT_PASSWORD },
-        (err, api) => {
-          if (err) return reject(err);
-          this._afterLogin();
-          resolve();
-        }
-      );
-    });
-  }
-
   _afterLogin() {
     try {
-      const idResult = getCurrentUserID();
+      const idResult = this.ig.getCurrentUserID();
       this.userID = typeof idResult === 'object'
         ? (idResult.userID || idResult.userId || String(idResult))
         : String(idResult);
     } catch (e) {
       this.userID = 'unknown';
     }
+
     this.username          = this.userID !== 'unknown' ? this.userID : 'unknown';
     this.api               = this.createAPIWrapper();
     this.reconnectAttempts = 0;
@@ -162,7 +126,7 @@ class InstagramBot {
   startListening() {
     logger.info('Starting message listener…');
 
-    listen((err, event) => {
+    this.ig.listen((err, event) => {
       if (err) {
         const msg = err.message || String(err);
         logger.error('Listen error', { error: msg });
@@ -193,7 +157,6 @@ class InstagramBot {
       }
     });
 
-    // Periodic MQTT listener restart
     if (config.RESTART_LISTEN_MQTT.enable) {
       this._scheduleMqttRestart();
     }
@@ -206,7 +169,7 @@ class InstagramBot {
     const { timeRestart, delayAfterStopListening, logNoti } = config.RESTART_LISTEN_MQTT;
     this._mqttRestartTimer = setInterval(() => {
       if (logNoti) logger.info('Periodic MQTT listener restart…');
-      try { stopListening(); } catch (_) {}
+      try { this.ig.stopListening(); } catch (_) {}
       setTimeout(() => {
         if (this.isRunning) this.startListening();
       }, delayAfterStopListening);
@@ -236,12 +199,13 @@ class InstagramBot {
         messageId: messageID,
         senderID,
         senderId: senderID,
-        body:        event.body        || '',
-        timestamp:   timestamp         || Date.now(),
-        type:        event.type        || 'message',
-        attachments: event.attachments || [],
+        body:           event.body           || '',
+        timestamp:      timestamp            || Date.now(),
+        type:           event.type           || 'message',
+        attachments:    event.attachments    || [],
         isVoiceMessage: event.isVoiceMessage || false,
-        isGroup: event.isGroup || false
+        isGroup:        event.isGroup        || false,
+        replyToItemId:  event.replyTo        || null
       };
 
       await this.eventLoader.handleEvent('message', normalizedEvent);
@@ -260,13 +224,11 @@ class InstagramBot {
       if (logType === 'log:subscribe') {
         const added = event.logMessageData?.addedParticipants || [];
 
-        // Check if the bot itself was added
         const botAdded = added.some(p =>
           String(p.userFbId || p.userId || '') === String(this.userID)
         );
 
         if (botAdded) {
-          // Bot was added to a new thread
           await this.eventLoader.handleEvent('bot_added', {
             threadID,
             threadId: threadID,
@@ -275,7 +237,6 @@ class InstagramBot {
             timestamp: event.timestamp || Date.now()
           });
         } else {
-          // Regular member(s) joined
           await this.eventLoader.handleEvent('gc_join', {
             threadID,
             threadId: threadID,
@@ -321,23 +282,21 @@ class InstagramBot {
   // ── API wrapper ───────────────────────────────────────────────────────
 
   createAPIWrapper() {
+    const ig = this.ig;
+
     return {
       sendMessage: async (text, threadID) => {
         try {
           if (config.TYPING_INDICATOR) {
-            sendTypingIndicator(threadID, () => {});
+            ig.sendTypingIndicator(threadID);
             await this._sleep(config.TYPING_INDICATOR_DURATION);
           }
-          return await new Promise((resolve, reject) => {
-            sendMessage(text, threadID, (err, result) => {
-              if (err) return reject(err);
-              if (result?.messageID) {
-                const db = require('../utils/database');
-                db.storeSentMessage(threadID, result.messageID);
-              }
-              resolve(result);
-            });
-          });
+          const result = await ig.sendMessage(text, threadID);
+          if (result?.messageID) {
+            const db = require('../utils/database');
+            db.storeSentMessage(threadID, result.messageID);
+          }
+          return result;
         } catch (error) {
           logger.error('Failed to send message', { error: error.message, threadID });
           throw error;
@@ -346,12 +305,7 @@ class InstagramBot {
 
       sendMessageToUser: async (text, userID) => {
         try {
-          return await new Promise((resolve, reject) => {
-            sendDirectMessage(text, [userID], (err, result) => {
-              if (err) return reject(err);
-              resolve(result);
-            });
-          });
+          return await ig.sendDirectMessage(userID, text);
         } catch (error) {
           logger.error('Failed to send direct message', { error: error.message, userID });
           throw error;
@@ -360,12 +314,7 @@ class InstagramBot {
 
       getThread: async (threadID) => {
         try {
-          return await new Promise((resolve, reject) => {
-            getThreadInfo(threadID, (err, info) => {
-              if (err) return reject(err);
-              resolve(info);
-            });
-          });
+          return await ig.getThreadInfo(threadID);
         } catch (error) {
           logger.error('Failed to get thread', { error: error.message, threadID });
           throw error;
@@ -374,12 +323,7 @@ class InstagramBot {
 
       getInbox: async () => {
         try {
-          return await new Promise((resolve, reject) => {
-            getInbox((err, inbox) => {
-              if (err) return reject(err);
-              resolve(inbox);
-            });
-          });
+          return await ig.getInbox();
         } catch (error) {
           logger.error('Failed to get inbox', { error: error.message });
           throw error;
@@ -388,12 +332,7 @@ class InstagramBot {
 
       markAsSeen: async (threadID) => {
         try {
-          return await new Promise((resolve, reject) => {
-            markAsRead(threadID, true, (err) => {
-              if (err) return reject(err);
-              resolve();
-            });
-          });
+          return await ig.markAsRead(threadID, true);
         } catch (error) {
           logger.error('Failed to mark as seen', { error: error.message, threadID });
         }
@@ -402,15 +341,10 @@ class InstagramBot {
       sendPhoto: async (photoPath, threadID) => {
         try {
           if (config.TYPING_INDICATOR) {
-            sendTypingIndicator(threadID, () => {});
+            ig.sendTypingIndicator(threadID);
             await this._sleep(config.TYPING_INDICATOR_DURATION);
           }
-          return await new Promise((resolve, reject) => {
-            sendPhoto(threadID, photoPath, {}, (err, result) => {
-              if (err) return reject(err);
-              resolve(result);
-            });
-          });
+          return await ig.sendPhoto(threadID, photoPath, {});
         } catch (error) {
           logger.error('Failed to send photo', { error: error.message, threadID });
           throw error;
@@ -420,15 +354,10 @@ class InstagramBot {
       sendVideo: async (videoPath, threadID) => {
         try {
           if (config.TYPING_INDICATOR) {
-            sendTypingIndicator(threadID, () => {});
+            ig.sendTypingIndicator(threadID);
             await this._sleep(config.TYPING_INDICATOR_DURATION);
           }
-          return await new Promise((resolve, reject) => {
-            sendVideo(threadID, videoPath, {}, (err, result) => {
-              if (err) return reject(err);
-              resolve(result);
-            });
-          });
+          return await ig.sendVideo(threadID, videoPath, {});
         } catch (error) {
           logger.error('Failed to send video', { error: error.message, threadID });
           throw error;
@@ -438,29 +367,20 @@ class InstagramBot {
       sendAudio: async (audioPath, threadID) => {
         try {
           if (config.TYPING_INDICATOR) {
-            sendTypingIndicator(threadID, () => {});
+            ig.sendTypingIndicator(threadID);
             await this._sleep(config.TYPING_INDICATOR_DURATION);
           }
-          return await new Promise((resolve, reject) => {
-            sendVoice(threadID, audioPath, {}, (err, result) => {
-              if (err) return reject(err);
-              resolve(result);
-            });
-          });
+          return await ig.sendVoice(threadID, audioPath, {});
         } catch (error) {
           logger.error('Failed to send audio', { error: error.message, threadID });
           throw error;
         }
       },
 
+      // threadID kept for db tracking; only messageID is passed to the library
       unsendMessage: async (threadID, messageID) => {
         try {
-          await new Promise((resolve, reject) => {
-            unsendMessage(threadID, messageID, (err) => {
-              if (err) return reject(err);
-              resolve();
-            });
-          });
+          await ig.unsendMessage(messageID);
           const db = require('../utils/database');
           db.removeSentMessage(threadID, messageID);
         } catch (error) {
@@ -476,12 +396,7 @@ class InstagramBot {
 
       getUserInfo: async (userID) => {
         try {
-          return await new Promise((resolve, reject) => {
-            getUserInfo(userID, (err, info) => {
-              if (err) return reject(err);
-              resolve(info);
-            });
-          });
+          return await ig.getUserInfo(userID);
         } catch (error) {
           logger.error('Failed to get user info', { error: error.message, userID });
           throw error;
@@ -490,12 +405,7 @@ class InstagramBot {
 
       getUserInfoByUsername: async (username) => {
         try {
-          return await new Promise((resolve, reject) => {
-            getUserInfoByUsername(username, (err, info) => {
-              if (err) return reject(err);
-              resolve(info);
-            });
-          });
+          return await ig.getUserInfoByUsername(username);
         } catch (error) {
           logger.error('Failed to get user info by username', { error: error.message, username });
           throw error;
@@ -506,7 +416,6 @@ class InstagramBot {
 
   // ── Scheduled features ────────────────────────────────────────────────
 
-  /** Fire due reminders every 30 seconds */
   _startReminderScheduler() {
     if (this._reminderTimer) clearInterval(this._reminderTimer);
     this._reminderTimer = setInterval(async () => {
@@ -532,7 +441,6 @@ class InstagramBot {
     logger.info('Reminder scheduler started (checks every 30s)');
   }
 
-  /** Auto-restart: supports ms interval or cron expression */
   _scheduleAutoRestart() {
     const time = config.AUTO_RESTART_TIME;
     if (!time) return;
@@ -555,7 +463,6 @@ class InstagramBot {
     }
   }
 
-  /** Auto-uptime ping */
   _scheduleAutoUptime() {
     if (!config.AUTO_UPTIME_ENABLE) return;
     const intervalMs = config.AUTO_UPTIME_INTERVAL * 1000;
@@ -570,7 +477,6 @@ class InstagramBot {
     }, intervalMs);
   }
 
-  /** Periodic cookie refresh via email/password login */
   _scheduleCookieRefresh() {
     if (this._cookieRefreshTimer) clearInterval(this._cookieRefreshTimer);
     const intervalMs = (config.INTERVAL_GET_NEW_COOKIE || 1440) * 60 * 1000;
@@ -578,7 +484,11 @@ class InstagramBot {
     this._cookieRefreshTimer = setInterval(async () => {
       logger.info('Refreshing cookies via email/password login…');
       try {
-        await this._loginWithCredentials();
+        this.ig = await login({
+          email:    config.ACCOUNT_EMAIL,
+          password: config.ACCOUNT_PASSWORD
+        });
+        this._afterLogin();
         logger.info('Cookie refresh successful.');
       } catch (err) {
         logger.error('Cookie refresh failed.', { error: err.message });
@@ -586,7 +496,6 @@ class InstagramBot {
     }, intervalMs);
   }
 
-  /** Send MQTT error notifications to Telegram / Discord */
   async _sendMqttErrorNotification(errorMsg) {
     const { telegram, discordHook } = config.NOTI_MQTT_ERROR;
 
@@ -634,10 +543,10 @@ class InstagramBot {
       logger.info(`Received ${signal}, shutting down…`);
       this.isRunning       = false;
       this.shouldReconnect = false;
-      if (this._mqttRestartTimer)  clearInterval(this._mqttRestartTimer);
+      if (this._mqttRestartTimer)   clearInterval(this._mqttRestartTimer);
       if (this._cookieRefreshTimer) clearInterval(this._cookieRefreshTimer);
       if (this._reminderTimer)      clearInterval(this._reminderTimer);
-      try { stopListening(); } catch (_) {}
+      try { if (this.ig) this.ig.stopListening(); } catch (_) {}
       logger.info('Bot shutdown complete');
       process.exit(0);
     };
