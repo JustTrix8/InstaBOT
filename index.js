@@ -1,4 +1,4 @@
-const InstagramBot = require('./src/bot/InstagramBot');
+const InstagramBot = require('./bot/InstagramBot');
 
 const bot = new InstagramBot();
 

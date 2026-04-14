@@ -179,7 +179,7 @@ node index.js
 
 ## 🔧 Creating Custom Commands
 
-Create a new file in the matching category folder under `src/commands/`:
+Create a new file in the `commands/` directory:
 
 ```javascript
 module.exports = {
@@ -213,7 +213,7 @@ module.exports = {
 
 ## 🎯 Creating Custom Events
 
-Create a new file in the `src/events/` directory:
+Create a new file in the `events/` directory:
 
 ```javascript
 module.exports = {
@@ -235,24 +235,15 @@ module.exports = {
 
 ```
 ├── index.js              # Start script
-├── src/
-│   ├── bot/              # Main bot engine
-│   ├── config/           # Configuration loader and defaults
-│   ├── commands/         # Command modules grouped by category
-│   │   ├── admin/
-│   │   ├── ai/
-│   │   ├── config/
-│   │   ├── fun/
-│   │   ├── game/
-│   │   ├── info/
-│   │   ├── system/
-│   │   └── utility/
-│   ├── events/           # Event handlers
-│   └── utils/            # Utility modules
+├── bot/                  # Main bot engine
+├── config/               # Configuration loader and defaults
+├── commands/             # Command modules
+├── events/               # Event handlers
+├── utils/                # Utility modules
 ├── account.txt           # Instagram cookies (Netscape format)
 └── storage/
     ├── logs/             # Log files
-    └── data/             # Persistent data
+    └── data/             # SQLite database
 ```
 
 ## Error Handling
@@ -272,6 +263,15 @@ Logs are saved in the `storage/logs/` directory:
 - `error.log` - Error logs only
 
 Console output includes colored, formatted logs for easy monitoring.
+
+## Database
+
+By default, bot data is saved in a local SQLite database at `storage/data/bot.sqlite`.
+
+To use MongoDB instead, set these environment variables:
+
+- `MONGODB_URI` - Your MongoDB connection string
+- `MONGODB_DATABASE` - Optional database name, defaults to `instagram_bot`
 
 ## Security
 

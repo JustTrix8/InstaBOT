@@ -4,14 +4,22 @@
 This is a highly advanced Instagram bot built with Node.js and the `@neoaz07/nkxica` chat API. The bot is designed to handle Instagram messages, commands, and events similar to GoatbotV2's architecture.
 
 ## Recent Changes
-- **2026-04-14 (Latest)**: Project Structure Cleanup
-  - Reorganized source code into a clean `src/` layout
-  - Moved main bot engine to `src/bot/InstagramBot.js`
-  - Grouped commands by category under `src/commands/`
-  - Moved events to `src/events/` and shared utilities to `src/utils/`
-  - Moved configuration files to `src/config/`
-  - Moved JSON database and log files to `storage/data/` and `storage/logs/`
-  - Updated command loading to scan nested command folders recursively
+- **2026-04-14 (Latest)**: Command Folder and Database Cleanup
+  - Moved source folders out of `src/` and back to root-level folders
+  - Flattened all command files back into `commands/` with no category subfolders
+  - Replaced JSON file storage with SQLite as the default local database
+  - Added optional MongoDB support through `MONGODB_URI`
+  - Existing `storage/data/database.json` data is migrated into SQLite/MongoDB on startup and then removed
+  - Bot startup now waits for database initialization before loading commands and events
+
+- **2026-04-14**: Project Structure Cleanup
+  - Reorganized source code into a clean layout
+  - Moved main bot engine to `bot/InstagramBot.js`
+  - Initially grouped commands by category, then flattened back into `commands/`
+  - Moved events to `events/` and shared utilities to `utils/`
+  - Moved configuration files to `config/`
+  - Moved runtime data and log files to `storage/data/` and `storage/logs/`
+  - Updated command loading during the cleanup
   - Bot restarted successfully after the reorganization
 
 - **2025-10-31 (Latest)**: Improved Message Visibility with Typing Indicator
@@ -125,37 +133,28 @@ This is a highly advanced Instagram bot built with Node.js and the `@neoaz07/nkx
 ## Project Architecture
 ```
 ├── index.js              # Start script
-├── src/
-│   ├── bot/
-│   │   └── InstagramBot.js # Main bot engine with Instagram connection
-│   ├── config/
-│   │   ├── index.js      # Configuration loader
-│   │   └── default.json  # Default bot settings
-│   ├── commands/         # 23 command modules grouped by category
-│   │   ├── admin/        # Admin-only commands
-│   │   ├── ai/           # AI/GPT integration
-│   │   ├── config/       # Bot configuration commands
-│   │   ├── fun/          # Fun commands
-│   │   ├── game/         # Game commands
-│   │   ├── info/         # Statistics and info commands
-│   │   ├── system/       # Core system commands
-│   │   └── utility/      # Utility commands
-│   ├── events/           # Event handlers
-│   │   ├── message.js    # Enhanced message handler with moderation & features
-│   │   ├── ready.js      # Bot connected event
-│   │   └── error.js      # Error handling and auto-reconnect
-│   └── utils/            # Utility modules
-│       ├── logger.js     # Winston logging system
-│       ├── database.js   # JSON database with auto-save
-│       ├── moderation.js # Anti-spam, whitelist/blacklist, bad words
-│       ├── permissions.js # Role-based permissions
-│       ├── banner.js     # Console banners
-│       ├── commandLoader.js # Recursive command loading
-│       └── eventLoader.js # Event system management
+├── bot/
+│   └── InstagramBot.js # Main bot engine with Instagram connection
+├── config/
+│   ├── index.js        # Configuration loader
+│   └── default.json    # Default bot settings
+├── commands/           # 23 command modules in one folder
+├── events/             # Event handlers
+│   ├── message.js      # Enhanced message handler with moderation & features
+│   ├── ready.js        # Bot connected event
+│   └── error.js        # Error handling and auto-reconnect
+├── utils/              # Utility modules
+│   ├── logger.js       # Winston logging system
+│   ├── database.js     # SQLite database with optional MongoDB support
+│   ├── moderation.js   # Anti-spam, whitelist/blacklist, bad words
+│   ├── permissions.js  # Role-based permissions
+│   ├── banner.js       # Console banners
+│   ├── commandLoader.js # Command loading
+│   └── eventLoader.js  # Event system management
 ├── account.txt           # Instagram cookies in Netscape format (user must provide)
 └── storage/
     ├── logs/             # Log files (auto-generated)
-    └── data/             # Persistent data storage (database.json)
+    └── data/             # SQLite database storage (bot.sqlite)
 ```
 
 ## User Preferences

@@ -115,18 +115,20 @@ module.exports = {
   MAX_LOG_FILES: configJSON.logging?.maxLogFiles || 5,
   
   ACCOUNT_FILE: process.env.ACCOUNT_FILE || configJSON.paths?.account || './account.txt',
-  COMMANDS_PATH: configJSON.paths?.commands || './src/commands',
-  EVENTS_PATH: configJSON.paths?.events || './src/events',
+  COMMANDS_PATH: configJSON.paths?.commands || './commands',
+  EVENTS_PATH: configJSON.paths?.events || './events',
   LOGS_PATH: configJSON.paths?.logs || './storage/logs',
   DATA_PATH: configJSON.paths?.data || './storage/data',
   TEMP_PATH: configJSON.paths?.temp || './temp',
   
   // Database
   DATABASE_ENABLED: configJSON.database?.enabled || false,
-  DATABASE_TYPE: configJSON.database?.type || 'json',
-  DATABASE_PATH: configJSON.database?.path || './storage/data/database.json',
+  DATABASE_TYPE: process.env.MONGODB_URI ? 'mongodb' : (process.env.DATABASE_TYPE || configJSON.database?.type || 'sqlite'),
+  DATABASE_PATH: process.env.DATABASE_PATH || configJSON.database?.path || './storage/data/bot.sqlite',
   DATABASE_AUTO_SAVE: configJSON.database?.autoSave !== false,
   DATABASE_SAVE_INTERVAL: configJSON.database?.saveInterval || 60000,
+  MONGODB_URI: process.env.MONGODB_URI || configJSON.database?.mongodbUri || '',
+  MONGODB_DATABASE: process.env.MONGODB_DATABASE || configJSON.database?.mongodbDatabase || 'instagram_bot',
   
   // Notifications
   NOTIFY_ON_START: configJSON.notifications?.onStart !== false,

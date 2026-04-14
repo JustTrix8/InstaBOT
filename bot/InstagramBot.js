@@ -43,6 +43,9 @@ class InstagramBot {
       Banner.display();
       logger.info('Starting Instagram Bot...');
 
+      const database = require('../utils/database');
+      await database.ready;
+
       await this.commandLoader.loadCommands();
       await this.eventLoader.loadEvents();
       this.eventLoader.registerEvents();

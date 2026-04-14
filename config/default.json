@@ -114,17 +114,19 @@
   
   "paths": {
     "account": "./account.txt",
-    "commands": "./src/commands",
-    "events": "./src/events",
+    "commands": "./commands",
+    "events": "./events",
     "logs": "./storage/logs",
     "data": "./storage/data",
     "temp": "./temp"
   },
   
   "database": {
-    "enabled": false,
-    "type": "json",
-    "path": "./storage/data/database.json",
+    "enabled": true,
+    "type": "sqlite",
+    "path": "./storage/data/bot.sqlite",
+    "mongodbUri": "",
+    "mongodbDatabase": "instagram_bot",
     "autoSave": true,
     "saveInterval": 60000
   },

@@ -21,7 +21,9 @@ class CommandLoader {
       return;
     }
 
-    const commandFiles = this.getJavaScriptFiles(commandsPath);
+    const commandFiles = fs.readdirSync(commandsPath)
+      .filter(file => file.endsWith('.js'))
+      .map(file => path.join(commandsPath, file));
     
     logger.info(`Loading ${commandFiles.length} commands...`);
 
@@ -55,23 +57,6 @@ class CommandLoader {
     }
 
     logger.info(`Successfully loaded ${this.commands.size} commands`);
-  }
-
-  getJavaScriptFiles(directory) {
-    const entries = fs.readdirSync(directory, { withFileTypes: true });
-    const files = [];
-
-    for (const entry of entries) {
-      const entryPath = path.join(directory, entry.name);
-
-      if (entry.isDirectory()) {
-        files.push(...this.getJavaScriptFiles(entryPath));
-      } else if (entry.isFile() && entry.name.endsWith('.js')) {
-        files.push(entryPath);
-      }
-    }
-
-    return files;
   }
 
   /**
